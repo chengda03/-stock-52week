@@ -1,0 +1,211 @@
+{
+  "initial_capital": 100000000,
+  "cash": 100000000,
+  "holdings": [],
+  "selection": {
+    "as_of": "2026-05-19",
+    "stocks": [
+      {
+        "code": "012510",
+        "name": "더존비즈온",
+        "market": "KOSPI",
+        "price": 120200.0,
+        "high_52w": 121300.0,
+        "high_ratio": 0.9909315746084089,
+        "op_income": 35020499225.0,
+        "rank": 1
+      },
+      {
+        "code": "440110",
+        "name": "파두",
+        "market": "KOSDAQ",
+        "price": 107900.0,
+        "high_52w": 110800.0,
+        "high_ratio": 0.973826714801444,
+        "op_income": 7685802062.0,
+        "rank": 2
+      },
+      {
+        "code": "192080",
+        "name": "더블유게임즈",
+        "market": "KOSPI",
+        "price": 61300.0,
+        "high_52w": 63900.0,
+        "high_ratio": 0.9593114241001565,
+        "op_income": 68470864691.0,
+        "rank": 3
+      },
+      {
+        "code": "011070",
+        "name": "LG이노텍",
+        "market": "KOSPI",
+        "price": 793000.0,
+        "high_52w": 829000.0,
+        "high_ratio": 0.9565741857659831,
+        "op_income": 295320000000.0,
+        "rank": 4
+      },
+      {
+        "code": "080220",
+        "name": "제주반도체",
+        "market": "KOSDAQ",
+        "price": 95900.0,
+        "high_52w": 101500.0,
+        "high_ratio": 0.9448275862068966,
+        "op_income": 67113446927.0,
+        "rank": 5
+      },
+      {
+        "code": "033780",
+        "name": "KT&G",
+        "market": "KOSPI",
+        "price": 177200.0,
+        "high_52w": 189500.0,
+        "high_ratio": 0.9350923482849605,
+        "op_income": 364536000000.0,
+        "rank": 6
+      },
+      {
+        "code": "415640",
+        "name": "KB발해인프라",
+        "market": "KOSPI",
+        "price": 9860.0,
+        "high_52w": 10600.0,
+        "high_ratio": 0.930188679245283,
+        "op_income": null,
+        "rank": 7
+      },
+      {
+        "code": "003690",
+        "name": "코리안리",
+        "market": "KOSPI",
+        "price": 14210.0,
+        "high_52w": 15400.0,
+        "high_ratio": 0.9227272727272727,
+        "op_income": null,
+        "rank": 8
+      },
+      {
+        "code": "006260",
+        "name": "LS",
+        "market": "KOSPI",
+        "price": 541000.0,
+        "high_52w": 587000.0,
+        "high_ratio": 0.9216354344122658,
+        "op_income": 476090000000.0,
+        "rank": 9
+      },
+      {
+        "code": "088980",
+        "name": "맥쿼리인프라",
+        "market": "KOSPI",
+        "price": 11110.0,
+        "high_52w": 12070.0,
+        "high_ratio": 0.9204639602319801,
+        "op_income": null,
+        "rank": 10
+      },
+      {
+        "code": "005930",
+        "name": "삼성전자",
+        "market": "KOSPI",
+        "price": 275500.0,
+        "high_52w": 299500.0,
+        "high_ratio": 0.9198664440734557,
+        "op_income": 57232797000000.0,
+        "rank": 11
+      },
+      {
+        "code": "032830",
+        "name": "삼성생명",
+        "market": "KOSPI",
+        "price": 312000.0,
+        "high_52w": 339500.0,
+        "high_ratio": 0.9189985272459499,
+        "op_income": null,
+        "rank": 12
+      },
+      {
+        "code": "271560",
+        "name": "오리온",
+        "market": "KOSPI",
+        "price": 137600.0,
+        "high_52w": 150100.0,
+        "high_ratio": 0.91672218520986,
+        "op_income": 165471489634.0,
+        "rank": 13
+      },
+      {
+        "code": "028670",
+        "name": "팬오션",
+        "market": "KOSPI",
+        "price": 6050.0,
+        "high_52w": 6600.0,
+        "high_ratio": 0.9166666666666666,
+        "op_income": 140923000000.0,
+        "rank": 14
+      },
+      {
+        "code": "131290",
+        "name": "티에스이",
+        "market": "KOSDAQ",
+        "price": 210000.0,
+        "high_52w": 229500.0,
+        "high_ratio": 0.9150326797385621,
+        "op_income": 41991772083.0,
+        "rank": 15
+      },
+      {
+        "code": "007070",
+        "name": "GS리테일",
+        "market": "KOSPI",
+        "price": 27350.0,
+        "high_52w": 29950.0,
+        "high_ratio": 0.9131886477462438,
+        "op_income": 58274149464.0,
+        "rank": 16
+      },
+      {
+        "code": "295310",
+        "name": "에이치브이엠",
+        "market": "KOSDAQ",
+        "price": 115400.0,
+        "high_52w": 127000.0,
+        "high_ratio": 0.9086614173228347,
+        "op_income": 4416755070.0,
+        "rank": 17
+      },
+      {
+        "code": "005935",
+        "name": "삼성전자우",
+        "market": "KOSPI",
+        "price": 180800.0,
+        "high_52w": 199000.0,
+        "high_ratio": 0.9085427135678392,
+        "op_income": null,
+        "rank": 18
+      },
+      {
+        "code": "282330",
+        "name": "BGF리테일",
+        "market": "KOSPI",
+        "price": 133900.0,
+        "high_52w": 147800.0,
+        "high_ratio": 0.9059539918809202,
+        "op_income": 38109787404.0,
+        "rank": 19
+      },
+      {
+        "code": "023530",
+        "name": "롯데쇼핑",
+        "market": "KOSPI",
+        "price": 161100.0,
+        "high_52w": 178000.0,
+        "high_ratio": 0.9050561797752809,
+        "op_income": 252882436712.0,
+        "rank": 20
+      }
+    ]
+  },
+  "last_updated": "2026-05-19 23:54:29"
+}
