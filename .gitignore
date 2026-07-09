@@ -1,0 +1,13 @@
+# --- 보안/민감정보 ---
+.env
+data/portfolio.json
+
+# --- 로그 ---
+*.log
+
+# --- 파이썬 ---
+__pycache__/
+*.pyc
+
+# --- 가상환경 ---
+.venv/
