@@ -37,12 +37,21 @@ from typing import Optional
 # =========================================================================
 
 # --- 매수조건에 쓰이는 이동평균 ---
-BUY_MA_DAYS = 60          # 매수조건 ③: 현재가가 이 이동평균선 위여야 함
-                          # ★주의: 매도조건의 90일선과는 다른 값입니다. 헷갈리지 않게 이름을 다르게 뒀습니다.
+BUY_MA_DAYS = 60          # (2026-07-14 개정) 매수조건에서 '60일선 위' 문턱은 삭제됨.
+                          #   이 상수는 data_layer.py가 60일선을 계산/제공하는 파이프라인 호환용으로만
+                          #   남겨둔다(매수판정에는 더 이상 쓰이지 않음). StockSnapshot.ma_buy도 마찬가지.
 
 # --- 매도조건 ---
 SELL_MA_DAYS = 90         # 매도조건 ①: 종가가 이 이동평균선 아래로 내려가면 매도
 HARD_STOP_LOSS_PCT = 0.12 # 매도조건 ②: 평단가 대비 -12% 하드손절 (2026-06-17 신규 추가)
+
+# --- 매수조건: 90일선 이격도 (2026-07-14 개정) ---
+# 기존 "현재가 > 90일선" 단순 문턱을 '이격도(현재가가 90일선보다 얼마나 위인지 %)'로 교체.
+#   이격도(%) = (현재가 - 90일선) / 90일선 × 100
+# 90일선 바로 위에 겨우 걸친 종목(사자마자 90일선 이탈로 되팔릴 whipsaw 위험)을 걸러내기 위해
+# 최소 여유폭 2.5%를 요구한다. 백테스트 근거: results/disparity_filter_compare.csv,
+# results/align_filter_compare.csv (재손절 25.6%→18~19%로 감소, CAGR 소폭 개선/동등).
+BUY_DISPARITY_MIN_PCT = 2.5
 
 # --- 부분익절 (2026-07-09 확정: "+8% 도달시 50% 부분익절") ---
 # 전량매도(위 90일선/하드손절)와는 별개 규칙. 이기는 종목의 절반만 실현하고
@@ -129,13 +138,28 @@ def is_bull_market(kospi_close: float, kospi_ma200: float) -> bool:
 
 def check_buy_conditions(stock: StockSnapshot, is_bull: bool) -> tuple[bool, list[str]]:
     """
-    매수조건 6개를 모두 확인합니다. STRATEGY_FINAL.md §1 기준:
+    매수조건 5개를 모두 확인합니다. STRATEGY_FINAL.md §1 기준 + 90일선 이격도 필터:
       1) 저평가: 현재가 < ROE(%) × EPS  (적정주가 대비 상승여력)
       2) ROE ≥ 15%
-      3) 현재가 > 60일선
+      3) 90일선 이격도 ≥ 2.5%   ← 2026-07-14 개정. 아래 참고.
       4) 20일 모멘텀 > 0
       5) 20일평균거래대금 ≥ 30억원
       6) 시장필터: KOSPI가 강세장일 때만
+
+    ★ 조건 3 개정 배경 (2026-07-14) — '60일선 삭제 + 90일선을 이격도로 교체':
+      (구) 매수조건은 "현재가 > 60일선" AND "현재가 > 90일선" 두 문턱을 각각 걸었다.
+      그런데 (a) 60일선 문턱은 90일선 문턱이 있으면 거의 잉여였고(제거해도 종목군
+      Jaccard 98%로 성과 동일), (b) 90일선 '바로 위'에 겨우 걸친 종목은 사자마자
+      90일선 이탈 매도로 되팔리는 whipsaw를 냈다.
+      → 60일선 문턱을 삭제하고, 90일선은 단순 '위/아래'가 아니라 '이격도 ≥ 2.5%'
+        (현재가가 90일선보다 최소 2.5% 위)로 바꿔 최소 여유폭을 요구한다.
+      (이격도의 90일선 값 stock.ma_sell 은 매도조건과 '동일 값'을 재사용 — 이중계산 없음)
+      백테스트 근거: results/disparity_filter_compare.csv, results/align_filter_compare.csv
+      (매수 후 5일내 재손절 25.6%→18~19%로 대폭 감소, CAGR 소폭 개선/동등).
+      단 단일 경로(약 6.5년) 백테스트라 과최적화 위험은 여전히 존재한다.
+
+    ★ 참고: StockSnapshot.ma_buy(60일선)는 더 이상 매수판정에 쓰이지 않는다
+      (데이터 파이프라인 호환을 위해 필드/계산 자체는 남겨둠).
 
     반환값: (매수가능여부, 실패한 조건 이름 리스트)
         실패 이유를 함께 반환하는 건 디버깅/신호화면 표시용입니다.
@@ -157,9 +181,18 @@ def check_buy_conditions(stock: StockSnapshot, is_bull: bool) -> tuple[bool, lis
     if not (stock.roe_pct >= ROE_MIN_PCT):
         fail_reasons.append(f"ROE 미달 ({stock.roe_pct:.1f}% < {ROE_MIN_PCT}%)")
 
-    # 조건 3: 60일선 위
-    if not (stock.price > stock.ma_buy):
-        fail_reasons.append(f"60일선 아래 (현재가 {stock.price:,.0f} ≤ 60일선 {stock.ma_buy:,.0f})")
+    # 조건 3 (2026-07-14 개정): 90일선 이격도 ≥ 2.5%
+    #   (구 "현재가 > 60일선" 삭제 + "현재가 > 90일선"을 이격도 여유폭으로 교체)
+    #   이격도(%) = (현재가 - 90일선) / 90일선 × 100. 90일선(stock.ma_sell)이 없거나
+    #   0 이하면 정의 불가 → 자동 탈락.
+    if stock.ma_sell and stock.ma_sell > 0:
+        disparity = (stock.price - stock.ma_sell) / stock.ma_sell * 100.0
+    else:
+        disparity = float("-inf")
+    if not (disparity >= BUY_DISPARITY_MIN_PCT):
+        fail_reasons.append(
+            f"90일선 이격도 미달 ({disparity:.2f}% < {BUY_DISPARITY_MIN_PCT:.1f}%)"
+        )
 
     # 조건 4: 20일 모멘텀 > 0
     if not (stock.momentum_20d > 0):
@@ -351,8 +384,8 @@ if __name__ == "__main__":
     good_stock = StockSnapshot(
         ticker="TEST001", date=date(2026, 7, 9),
         price=9000,                 # 적정가(=18*600=10800)보다 낮음 → 저평가 O
-        ma_buy=8500,                # 현재가(9000) > 60일선(8500) → O
-        ma_sell=8000,               # (매도조건 테스트용, 여기선 안 씀)
+        ma_buy=8500,                # 60일선은 이제 매수판정에 쓰이지 않음(호환용 필드)
+        ma_sell=8000,               # 이격도 = (9000-8000)/8000 = 12.5% ≥ 2.5% → O
         roe_pct=18.0,                # ROE 18% ≥ 15% → O
         eps=600,
         momentum_20d=0.05,           # +5% > 0 → O
@@ -361,6 +394,19 @@ if __name__ == "__main__":
     can_buy, reasons = check_buy_conditions(good_stock, is_bull=True)
     assert can_buy is True, f"모든 조건 만족했는데 실패: {reasons}"
     print("[PASS] 매수조건 - 정상 통과 케이스")
+
+    # --- 2-b) 매수조건 테스트: 90일선 이격도 미달(2% < 2.5%)이면 탈락 ---
+    #   현재가 8160, 90일선 8000 → 이격도 2.0% → 조건 3에서 탈락해야 함
+    disp_edge = StockSnapshot(
+        ticker="TEST001B", date=date(2026, 7, 9),
+        price=8160, ma_buy=1, ma_sell=8000,   # 이격도 2.0% < 2.5%
+        roe_pct=18.0, eps=600, momentum_20d=0.05,
+        trading_value_20d_avg=5_000_000_000,
+    )
+    can_buy_edge, reasons_edge = check_buy_conditions(disp_edge, is_bull=True)
+    assert can_buy_edge is False
+    assert any("이격도" in r for r in reasons_edge)
+    print("[PASS] 매수조건 - 90일선 이격도 2.5% 미달 차단")
 
     # --- 3) 매수조건 테스트: 약세장이면 무조건 탈락 ---
     can_buy_bear, reasons_bear = check_buy_conditions(good_stock, is_bull=False)

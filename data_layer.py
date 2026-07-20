@@ -15,7 +15,8 @@ data_layer.py
   - 가격/거래량/지수 : FinanceDataReader로 미리 받아 data/cache_52w_bt 에 저장된 parquet
   - 재무(ROE/EPS)   : DART OpenAPI로 미리 받아 저장된 json (financials_full)
   - pykrx 는 방화벽 차단으로 사용하지 않음
-  - (한계) 발행주식수는 2024 사업보고서 단일 시점 값 → 과거 시총은 근사치
+  - 발행주식수: 연도별 사업보고서 값(2018~2025)을 shares/<corp>_<year>_11011.json 에서 로드.
+    결측 연도는 가장 가까운 연도 값으로 fallback. 시총·EPS 모두 '그날 적용 연도' 주식수 사용.
   - (한계) 유니버스가 '현재 상장사' 기준이라 상장폐지 종목이 빠지는 생존편향 존재
 
 핵심 클래스: DataStore
@@ -402,7 +403,40 @@ class DataStore:
         self.code_to_corp = {c: code_to_corp[c] for c in valid_codes}
         log(f"[data_layer] 가격 패널 확보: {len(valid_codes)}")
 
-        shares_by_code = {sc: shares_by_corp[code_to_corp[sc]] for sc in valid_codes}
+        # 연도별 발행주식수 로드 + 결측 연도는 '가장 가까운 연도'로 fallback.
+        #   - 후보 종목은 모두 2024 주식수를 가짐(keep 조건) → fallback은 항상 성공.
+        #   - shares_year_arr[yr] = 유니버스 순서(valid_codes)의 (N,) 주식수 배열.
+        shares_yr = _load_shares_by_year(corp_codes)
+        self._sc_year_sh = {}           # sc -> {yr: shares}
+        fb_pairs = 0                    # fallback 적용된 (종목,연도) 건수
+        fb_corps = set()                # fallback이 한 번이라도 적용된 종목
+        for sc in valid_codes:
+            cc = code_to_corp[sc]
+            avail = shares_yr.get(cc, {})
+            ymap = {}
+            for yr in FIN_YEARS:
+                if yr in avail:
+                    ymap[yr] = avail[yr]
+                elif avail:
+                    # 가장 가까운 연도(동률이면 더 최근 연도 우선)
+                    near = sorted(avail.keys(), key=lambda y: (abs(y - yr), -y))[0]
+                    ymap[yr] = avail[near]
+                    fb_pairs += 1
+                    fb_corps.add(sc)
+                else:
+                    # 연도별 파일이 전혀 없으면 2024 단일값으로
+                    ymap[yr] = shares_by_corp[cc]
+                    fb_pairs += 1
+                    fb_corps.add(sc)
+            self._sc_year_sh[sc] = ymap
+        self.shares_year_arr = {
+            yr: np.array([self._sc_year_sh[sc][yr] for sc in valid_codes], dtype=float)
+            for yr in FIN_YEARS
+        }
+        self._fallback_pairs = fb_pairs
+        self._fallback_corps = len(fb_corps)
+        log(f"[data_layer] 연도별 주식수: fallback {fb_pairs}건 / {len(fb_corps)}종목 "
+            f"(전체 {len(valid_codes)}종목 × {len(FIN_YEARS)}년)")
 
         # 거래일 인덱스: 준비기간(2019-06) ~ 데이터 마지막(또는 end_date)
         s = set()
@@ -417,14 +451,29 @@ class DataStore:
         log(f"[data_layer] 거래일: {len(trading_days)} "
             f"({trading_days[0].date()} ~ {trading_days[-1].date()})")
 
+        # 룩어헤드 방지: 날짜 → 사용할 사업보고서 연도 (5월 이후=전년, 4월 이전=전전년)
+        # 시총 계산에 '그날 적용 연도'의 주식수를 쓰기 위해 여기서 먼저 계산.
+        self.day_fin_year = np.array([fin_year_for_date(d) for d in trading_days])
+
         N = len(valid_codes)
         close = pd.DataFrame({c: panel[c]["Close"] for c in valid_codes}).reindex(trading_days)
         vol = pd.DataFrame({c: panel[c]["Volume"] for c in valid_codes}).reindex(trading_days)
 
         self.close_v = close.to_numpy(dtype=float)          # (T, N) 종가
         self.close_ff = close.ffill().to_numpy(dtype=float)  # 결측 보정(평가용)
-        shares_arr = np.array([shares_by_code[c] for c in valid_codes], dtype=float)
-        self.marcap_v = self.close_v * shares_arr[None, :]   # 시가총액 = 종가 × 주식수
+
+        # 시가총액 = 종가 × '그날 적용 사업보고서연도'의 발행주식수 (연도별 주식수 반영)
+        T = len(trading_days)
+        shares_day = np.empty((T, N), dtype=float)
+        for yr in FIN_YEARS:
+            mask = (self.day_fin_year == yr)
+            if mask.any():
+                shares_day[mask, :] = self.shares_year_arr[yr][None, :]
+        # 혹시 FIN_YEARS 밖의 연도가 있으면(이론상 없음) 2024 값으로 채움
+        oob = ~np.isin(self.day_fin_year, FIN_YEARS)
+        if oob.any():
+            shares_day[oob, :] = self.shares_year_arr[2024][None, :]
+        self.marcap_v = self.close_v * shares_day
 
         # 20일 평균 거래대금 = (종가 × 거래량)의 20일 이동평균
         self.tv_v = (close * vol).rolling(TRADING_VALUE_WIN,
@@ -451,7 +500,7 @@ class DataStore:
                     continue
                 ni = fin.get("net_income")
                 eq = fin.get("equity")
-                sh = shares_by_code[sc]
+                sh = self._sc_year_sh[sc][yr]   # 해당 연도 발행주식수 (EPS 정합성)
                 if ni is None or eq is None or eq <= 0 or ni <= 0 or sh <= 0:
                     continue
                 i = self.code_to_col[sc]
@@ -462,9 +511,6 @@ class DataStore:
             self.eps_by_year[yr] = eps_a
             cnt[yr] = c
         log("[data_layer] 재무 종목수: " + ", ".join(f"{y}:{cnt[y]}" for y in FIN_YEARS))
-
-        # 룩어헤드 방지: 날짜 → 사용할 사업보고서 연도 (5월 이후=전년, 4월 이전=전전년)
-        self.day_fin_year = np.array([fin_year_for_date(d) for d in trading_days])
 
         # 관리종목 지정일: 종목별 datetime64 배열(비관리종목은 NaT).
         # get_universe에서 'as_of ≥ 지정일'인 종목을 유니버스에서 제외하는 데 사용.
@@ -508,7 +554,7 @@ class DataStore:
     def get_universe(self, as_of_date) -> list[str]:
         """
         as_of_date 시점 코스피+코스닥 합산 시총 상위 500 티커.
-        - 시총 = 종가 × 상장주식수(2024 기준 상수 → 근사)
+        - 시총 = 종가 × 상장주식수('그날 적용 사업보고서연도' 값 → 룩어헤드 안전)
         - 관리종목/스팩/우선주/리츠는 후보 구성 단계에서 이미 제외됨
         - PIT: as_of_date 종가만 사용 (미래 데이터 없음)
         """
@@ -583,6 +629,28 @@ class DataStore:
         if np.isnat(dd):
             return False
         return dd <= np.datetime64(pd.Timestamp(as_of_date).normalize())
+
+
+def _load_shares_by_year(corp_codes: list[str]) -> dict[str, dict[int, int]]:
+    """corp_code -> {year: 발행주식수}. 파일 shares/<corp>_<year>_11011.json 에서 로드.
+    (없는 연도는 dict 에서 빠짐 → 호출측에서 가장 가까운 연도로 fallback)"""
+    out: dict[str, dict[int, int]] = {}
+    for cc in corp_codes:
+        ymap: dict[int, int] = {}
+        for yr in FIN_YEARS:
+            p = _os.path.join(ev.SHARES_DIR, f"{cc}_{yr}_{ev.SHARES_REPRT_CODE}.json")
+            if not _os.path.exists(p):
+                continue
+            try:
+                with open(p, encoding="utf-8") as f:
+                    v = _json.load(f).get("shares_outstanding")
+                if v and 0 < int(v) < 10_000_000_000:
+                    ymap[yr] = int(v)
+            except Exception:
+                continue
+        if ymap:
+            out[cc] = ymap
+    return out
 
 
 # 모듈 전역 싱글턴 (여러 번 로딩하지 않도록 재사용)

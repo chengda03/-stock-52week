@@ -64,6 +64,43 @@ FIN_FULL_DIR = os.path.join(BT_CACHE, "financials_full")
 RESULT_DIR = os.path.join(APP_DIR, "data", "cache_roe_eps_event", "results")
 os.makedirs(RESULT_DIR, exist_ok=True)
 
+# ---- DART OpenAPI 키 로딩 -------------------------------------------------
+# 프로젝트 루트의 .env 파일에서 DART_API_KEY를 읽어온다(하드코딩 금지).
+#   .env 예) DART_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# python-dotenv가 없거나 .env가 없어도 죽지 않고, 이미 설정된 OS 환경변수를 쓴다.
+try:
+    from dotenv import load_dotenv
+    # utf-8-sig: 메모장 등으로 저장해 BOM이 붙은 .env도 키 이름이 깨지지 않게 처리
+    load_dotenv(os.path.join(APP_DIR, ".env"), encoding="utf-8-sig")
+except Exception:
+    pass
+
+DART_API_KEY = os.environ.get("DART_API_KEY", "")
+
+# FinanceDataReader(urllib 기반)가 이 PC에서 SSL 인증서 검증 실패
+# (CERTIFICATE_VERIFY_FAILED)로 죽는 문제 방지: certifi CA 번들을 urllib에 알려준다.
+# (requests는 자체 certifi를 쓰므로 영향 없음.) 이미 지정돼 있으면 존중.
+if not os.environ.get("SSL_CERT_FILE"):
+    try:
+        import certifi
+        os.environ["SSL_CERT_FILE"] = certifi.where()
+    except Exception:
+        pass
+
+
+def get_dart_api_key() -> str:
+    """.env(또는 OS 환경변수)에서 읽은 DART OpenAPI 키를 반환.
+
+    키가 없으면 명확한 안내와 함께 예외를 던진다(빈 문자열로 조용히 실패 방지).
+    """
+    key = os.environ.get("DART_API_KEY", "") or DART_API_KEY
+    if not key:
+        raise RuntimeError(
+            "DART_API_KEY가 설정되어 있지 않습니다. 프로젝트 루트의 .env 파일에 "
+            "'DART_API_KEY=발급받은키' 형식으로 추가하세요."
+        )
+    return key
+
 # ---- 전략 파라미터 -------------------------------------------------------
 START_DATE = pd.Timestamp("2020-01-01")
 END_DATE = pd.Timestamp("2026-12-31")

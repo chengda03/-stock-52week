@@ -1,11 +1,14 @@
 # --- 보안/민감정보 ---
 .env
-data/portfolio.json
+.streamlit/secrets.toml
+
+# --- 데이터(시세·재무 캐시 + 개인 보유현황 portfolio_A.json/portfolio_B.json/portfolio.json) ---
+data/
 
 # --- 로그 ---
 *.log
 
-# --- 파이썬 ---
+# --- 파이썬 캐시 ---
 __pycache__/
 *.pyc
 

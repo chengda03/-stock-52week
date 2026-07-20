@@ -30,42 +30,85 @@ from strategy_core import Position, SLOT_AMOUNT_WON, NUM_SLOTS
 
 # 저장 위치 (없으면 자동 생성)
 DATA_DIR = "data"
-PORTFOLIO_PATH = os.path.join(DATA_DIR, "portfolio.json")
+# (레거시) 단일계좌 시절 파일 — 계좌 A 최초 로드시 자동 승계용으로만 사용
+LEGACY_PATH = os.path.join(DATA_DIR, "portfolio.json")
+PORTFOLIO_PATH = LEGACY_PATH  # 하위호환용 별칭(직접 쓰지 않음)
+
+# ★ 계좌 2개 지원 (이번 작업에서 추가):
+#   A = 성장계좌(인출 없음),  B = 현금흐름계좌(연말 인출)
+#   각 계좌는 별도 JSON 파일에 저장한다.
+PORTFOLIO_PATHS = {
+    "A": os.path.join(DATA_DIR, "portfolio_A.json"),
+    "B": os.path.join(DATA_DIR, "portfolio_B.json"),
+}
+ACCOUNT_LABELS = {"A": "성장", "B": "현금흐름"}
 
 # 초기 운용자금 = 1억 (슬롯 20 × 500만)
 INITIAL_CASH = SLOT_AMOUNT_WON * NUM_SLOTS
 
 
-def _empty_portfolio() -> dict:
-    """빈 포트폴리오(현금 1억, 보유 없음)."""
-    return {"cash": float(INITIAL_CASH), "positions": {}, "trade_log": []}
+def _portfolio_path(account: str = "A") -> str:
+    """계좌 코드(A/B) → 저장 파일 경로."""
+    return PORTFOLIO_PATHS.get(account, PORTFOLIO_PATHS["A"])
 
 
-def load_portfolio() -> dict:
+def _empty_portfolio(account: str = "A") -> dict:
+    """빈 포트폴리오(현금 1억, 보유 없음). account 필드와 누적인출금 필드를 포함."""
+    return {
+        "account": account,          # ★ 계좌 구분 필드 (A/B)
+        "cash": float(INITIAL_CASH),
+        "positions": {},
+        "trade_log": [],
+        "withdrawn": 0.0,            # 인출계좌 누적 인출금(B에서만 증가, 실행로직은 별도)
+    }
+
+
+def load_portfolio(account: str = "A") -> dict:
     """
-    data/portfolio.json 을 읽어서 반환.
-    파일이 없으면 빈 포트폴리오(현금 1억)를 만들어 반환합니다.
+    data/portfolio_<account>.json 을 읽어서 반환.
+    - 파일이 없으면 빈 포트폴리오(현금 1억)를 만들어 반환.
+    - 계좌 A인데 계좌파일이 없고 레거시 portfolio.json이 있으면 그 내용을 승계.
     """
-    if not os.path.exists(PORTFOLIO_PATH):
-        return _empty_portfolio()
+    path = _portfolio_path(account)
+    if not os.path.exists(path):
+        # 계좌 A: 예전 단일계좌 데이터가 있으면 자동 승계(1회)
+        if account == "A" and os.path.exists(LEGACY_PATH):
+            try:
+                with open(LEGACY_PATH, "r", encoding="utf-8") as f:
+                    state = json.load(f)
+                state.setdefault("cash", float(INITIAL_CASH))
+                state.setdefault("positions", {})
+                state.setdefault("trade_log", [])
+                state["account"] = "A"
+                state.setdefault("withdrawn", 0.0)
+                save_portfolio(state, account="A")
+                return state
+            except Exception:
+                pass
+        return _empty_portfolio(account)
     try:
-        with open(PORTFOLIO_PATH, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             state = json.load(f)
     except Exception:
         # 파일이 깨졌으면 안전하게 빈 포트폴리오로 시작
-        return _empty_portfolio()
+        return _empty_portfolio(account)
 
     # 필수 키 보정
+    state.setdefault("account", account)
     state.setdefault("cash", float(INITIAL_CASH))
     state.setdefault("positions", {})
     state.setdefault("trade_log", [])
+    state.setdefault("withdrawn", 0.0)
     return state
 
 
-def save_portfolio(state: dict) -> None:
-    """data/portfolio.json 에 저장 (폴더 없으면 생성)."""
+def save_portfolio(state: dict, account: str | None = None) -> None:
+    """data/portfolio_<account>.json 에 저장 (폴더 없으면 생성).
+    account 를 안 주면 state['account'] 를 사용(없으면 A)."""
+    acc = account or state.get("account", "A")
+    state["account"] = acc
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(PORTFOLIO_PATH, "w", encoding="utf-8") as f:
+    with open(_portfolio_path(acc), "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 

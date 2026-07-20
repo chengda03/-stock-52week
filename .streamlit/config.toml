@@ -1,0 +1,11 @@
+# S1 투자앱 — 남색(네이비) 다크 테마
+# base="dark"로 두면 Streamlit 기본 위젯(dataframe 캔버스, dialog, expander,
+# selectbox, text_input, date_input 등)의 배경/글자색이 어두운 테마를 따라가서
+# 흰 배경+안 보이는 글자 조합이 근본적으로 사라진다. inject_theme()의 CSS는
+# 이 위에서 세부 톤(헤더/툴바/패널)을 남색으로 맞추는 역할.
+[theme]
+base = "dark"
+primaryColor = "#4DABF7"
+backgroundColor = "#0B1F3A"
+secondaryBackgroundColor = "#13294B"
+textColor = "#E6EDF5"

@@ -5,3 +5,4 @@ finance-datareader>=0.9.50
 requests>=2.31.0
 lxml>=4.9.0
 pyarrow>=14.0.0
+python-dotenv>=1.0.0

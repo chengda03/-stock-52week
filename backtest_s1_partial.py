@@ -272,8 +272,15 @@ def label(r) -> str:
 
 
 def main():
-    log("===== S1 부분익절 변형 백테스트 =====")
-    store = data_layer.get_store()
+    import argparse
+    ap = argparse.ArgumentParser(description="S1 부분익절 변형 백테스트")
+    ap.add_argument("--end", type=str, default=None,
+                    help="백테스트 종료일(YYYY-MM-DD). 지정 시 그 날짜까지만 사용(기간 통제).")
+    args = ap.parse_args()
+    end = pd.Timestamp(args.end) if args.end else None
+    log("===== S1 부분익절 변형 백테스트 ====="
+        + (f" (종료일 {end.date()})" if end is not None else ""))
+    store = data_layer.get_store(end_date=end)
 
     # (이름, 부분익절 단계[(진입가대비 트리거, 그시점 잔량중 매도비율), ...])
     # 익절은 '+8%에서 50% 부분익절'로 고정하고, 손절 방식만 바꿔 비교.
