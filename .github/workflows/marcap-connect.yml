@@ -1,0 +1,46 @@
+name: Verify marcap data connection
+on:
+  push:
+    paths:
+      - '.github/workflows/marcap-connect.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source dataset
+        uses: actions/checkout@v4
+        with:
+          repository: FinanceData/marcap
+          ref: master
+          path: marcap
+          fetch-depth: 1
+          sparse-checkout: |
+            data/marcap-2019.parquet
+            data/marcap-2020.parquet
+            data/marcap-2021.parquet
+            data/marcap-2022.parquet
+            data/marcap-2023.parquet
+            data/marcap-2024.parquet
+            data/marcap-2025.parquet
+            data/marcap-2026.parquet
+          sparse-checkout-cone-mode: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install parquet reader
+        run: pip install pandas pyarrow
+      - name: Verify yearly files and schema
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+          for year in range(2019,2027):
+              path=Path(f'marcap/data/marcap-{year}.parquet')
+              if not path.exists():
+                  print(f'{year}: MISSING')
+                  continue
+              df=pd.read_parquet(path)
+              print(f'{year}: rows={len(df)}, columns={list(df.columns)}, last={df["Date"].max() if "Date" in df else df.index.max()}')
+          PY
