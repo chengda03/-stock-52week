@@ -3,7 +3,7 @@ on:
   push:
     paths:
       - 'audit_2026_excluding_011930.py'
-      - '.github/workflows/audit-2026-trade-forensics.yml'
+      - '.github/workflows/audit-2026-excluding-011930.yml'
   workflow_dispatch:
 jobs:
   optimize:
@@ -35,4 +35,7 @@ jobs:
         if: always()
         with:
           name: 52-audit-results
-          path: 52_2026_excluding_011930.csv\n          52_trade_ledger.csv\n          52_daily_equity.csv
+          path: |
+            52_2026_excluding_011930.csv
+            52_ex011930_ledger.csv
+            52_ex011930_equity.csv
