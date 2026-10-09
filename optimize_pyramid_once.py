@@ -72,7 +72,7 @@ for i,(feature,cutoff) in enumerate(configs):
    for code,(q,entry,initial_value) in positions.items():
     if code not in added and code in day.index and float(day.at[code,"Close"])>=entry*(1+cutoff) and code not in sell:
      add.append(code)
-  nav=cash+sum(q*last.get(k,c) for k,(q,c) in positions.items());eq.append(nav)
+  nav=cash+sum(q*last.get(k,c) for k,(q,c,_) in positions.items());eq.append(nav)
   for code in positions:
    if code in day.index and pd.notna(day.at[code,f"ma{stop}"]) and (day.at[code,"Close"]<day.at[code,f"ma{stop}"] or day.at[code,"Close"]<positions[code][1]*(1-hardstop)):sell.add(code)
   threshold=int(market.replace("breadth",""))/100
