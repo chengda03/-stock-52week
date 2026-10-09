@@ -1,0 +1,38 @@
+name: Optimize breakout
+on:
+  push:
+    paths:
+      - 'optimize_breakout.py'
+      - '.github/workflows/optimize-breakout.yml'
+  workflow_dispatch:
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: FinanceData/marcap
+          ref: master
+          path: marcap
+          sparse-checkout: |
+            data/marcap-2019.parquet
+            data/marcap-2020.parquet
+            data/marcap-2021.parquet
+            data/marcap-2022.parquet
+            data/marcap-2023.parquet
+            data/marcap-2024.parquet
+            data/marcap-2025.parquet
+            data/marcap-2026.parquet
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy pyarrow
+      - run: python optimize_breakout.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: optimization-results
+          path: optimization.csv
