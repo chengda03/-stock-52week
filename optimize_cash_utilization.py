@@ -78,7 +78,7 @@ for i,(risk_breadth,exposure,slots) in enumerate(configs):
    buy=[k for k in candidates.index if k not in positions][:slots]
  e=np.array(eq);yrs=(dates[-1]-dates[0]).days/365.25
  cagr=100*((e[-1]/1e8)**(1/yrs)-1);mdd=100*np.min(e/np.maximum.accumulate(e)-1)
- results.append(dict(avg_util=round(float(np.mean(util)),2),median_util=round(float(np.median(util)),2),invested_days=round(100*float(np.mean(np.array(util)>0)),2),avg_positions=round(float(np.mean(occupied)),2),risk_breadth=risk_breadth,exposure=exposure,slots=slots,feature=feature,cutoff=cutoff,hardstop_pct=round(hardstop*100),breakout=period,market=market,stop=stop,slots=slots,ranking=ranking,cagr=round(cagr,2),mdd=round(mdd,2),final=round(e[-1]),trades=trades,win=round(100*wins/trades,2) if trades else None))
+ results.append(dict(avg_util=round(float(np.mean(util)),2),median_util=round(float(np.median(util)),2),invested_days=round(100*float(np.mean(np.array(util)>0)),2),avg_positions=round(float(np.mean(occupied)),2),risk_breadth=risk_breadth,exposure=exposure,feature=feature,cutoff=cutoff,hardstop_pct=round(hardstop*100),breakout=period,market=market,stop=stop,slots=slots,ranking=ranking,cagr=round(cagr,2),mdd=round(mdd,2),final=round(e[-1]),trades=trades,win=round(100*wins/trades,2) if trades else None))
  print(f"{i+1}/{len(configs)} {period} {market} {stop} {slots} {ranking} CAGR={cagr:.2f} MDD={mdd:.2f}",flush=True)
 res=pd.DataFrame(results);res.to_csv("optimization_cash_utilization.csv",index=False)
 print("TOP CAGR");print(res.sort_values("cagr",ascending=False).head(15).to_string(index=False))
