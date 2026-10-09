@@ -1,0 +1,38 @@
+name: Audit 52 independent periods
+on:
+  push:
+    paths:
+      - 'audit_52_independent_periods.py'
+      - '.github/workflows/audit-52-independent-periods.yml'
+  workflow_dispatch:
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: FinanceData/marcap
+          ref: master
+          path: marcap
+          sparse-checkout: |
+            data/marcap-2019.parquet
+            data/marcap-2020.parquet
+            data/marcap-2021.parquet
+            data/marcap-2022.parquet
+            data/marcap-2023.parquet
+            data/marcap-2024.parquet
+            data/marcap-2025.parquet
+            data/marcap-2026.parquet
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy pyarrow
+      - run: python audit_52_independent_periods.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 52-audit-results
+          path: 52_independent_periods.csv\n          52_trade_ledger.csv\n          52_daily_equity.csv
