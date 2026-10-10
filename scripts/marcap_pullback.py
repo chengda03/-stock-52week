@@ -10,7 +10,7 @@ for p in paths:
 df=pd.concat(frames,ignore_index=True)
 df['Date']=pd.to_datetime(df['Date'])
 df=df[(df.Date>='2009-01-01')&(df.Date<='2026-10-09')&(df.Market.isin(['KOSPI','KOSDAQ']))].copy()
-df=df[df.Code.str.fullmatch(r'\\d{6}',na=False)]
+df=df[df.Code.str.fullmatch(r'\d{6}',na=False)]
 for c in ['Open','High','Low','Close','Volume']:
  df[c]=pd.to_numeric(df[c],errors='coerce')
 df=df.sort_values(['Code','Date'])
