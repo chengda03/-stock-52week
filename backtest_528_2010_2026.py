@@ -1,7 +1,7 @@
 import pandas as pd,numpy as np,itertools
 from pathlib import Path
 frames=[]
-for y in range(2019,2027):
+for y in range(2010,2027):
  p=Path(f"marcap/data/marcap-{y}.parquet")
  if p.exists():
   x=pd.read_parquet(p).reset_index()
