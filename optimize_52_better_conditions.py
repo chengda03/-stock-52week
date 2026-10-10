@@ -15,7 +15,7 @@ df=df[~df.Name.astype(str).str.contains("스팩|SPAC|우B?$|우C$|우\\(",regex=
 for c in ["Open","High","Low","Close","Amount","Rank","Volume"]:df[c]=pd.to_numeric(df[c],errors="coerce")
 df=df.sort_values(["Code","Date"]).drop_duplicates(["Code","Date"])
 g=df.groupby("Code",sort=False)
-for n in [10,15,20,50,90,200]:
+for n in [10,15,20,25,30,50,90,200]:
  df[f"ma{n}"]=g.Close.transform(lambda x:x.rolling(n,min_periods=n).mean())
 for n in [60,252]:
  df[f"b{n}"]=df.Close>g.High.transform(lambda x:x.shift(1).rolling(n,min_periods=n).max())
