@@ -1,11 +1,12 @@
 import os,glob,math
 import numpy as np,pandas as pd
 from collections import defaultdict
-paths=sorted(glob.glob('marcap/data/marcap-20*.csv.gz'))
+paths=sorted(glob.glob('marcap/data/marcap-20*.parquet'))
 paths=[p for p in paths if 2009<=int(os.path.basename(p)[7:11])<=2026]
 frames=[]
 for p in paths:
- d=pd.read_csv(p,compression='gzip',dtype={'Code':str},low_memory=False)
+ d=pd.read_parquet(p)
+ d['Code']=d['Code'].astype(str).str.zfill(6)
  frames.append(d)
 df=pd.concat(frames,ignore_index=True)
 df['Date']=pd.to_datetime(df['Date'])
