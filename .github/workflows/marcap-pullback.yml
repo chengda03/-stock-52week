@@ -1,0 +1,28 @@
+name: Marcap 10-day pullback backtest
+on:
+  push:
+    paths:
+      - '.github/workflows/marcap-pullback.yml'
+      - 'scripts/marcap_pullback.py'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - run: git clone --depth 1 https://github.com/FinanceData/marcap.git marcap
+      - run: python scripts/marcap_pullback.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marcap-pullback-results
+          path: |
+            summary.csv
+            annual_*.csv
+            trades_*.csv
+            equity_*.csv
