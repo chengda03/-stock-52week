@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pandas numpy
+      - run: pip install pandas numpy pyarrow
       - run: git clone --depth 1 https://github.com/FinanceData/marcap.git marcap
       - run: python scripts/marcap_pullback.py
       - uses: actions/upload-artifact@v4
