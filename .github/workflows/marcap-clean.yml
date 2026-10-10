@@ -1,0 +1,35 @@
+name: Marcap clean rebuild
+on:
+  push:
+    paths:
+      - '.github/workflows/marcap-clean.yml'
+      - 'scripts/marcap_clean.py'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy pyarrow
+      - name: Download historical market data
+        run: |
+          mkdir -p marcap/data
+          for year in $(seq 2009 2026); do
+            curl -fL --retry 3 -o "marcap/data/marcap-$year.parquet" "https://raw.githubusercontent.com/FinanceData/marcap/master/data/marcap-$year.parquet"
+            ls -lh "marcap/data/marcap-$year.parquet"
+          done
+      - name: Backtest
+        run: |
+          set -o pipefail
+          python -u scripts/marcap_clean.py 2>&1 | tee backtest.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marcap-clean-results
+          path: |
+            results/
+            backtest.log
