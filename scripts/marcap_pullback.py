@@ -7,14 +7,20 @@ frames=[]
 for p in paths:
  d=pd.read_parquet(p)
  d['Code']=d['Code'].astype(str).str.zfill(6)
+ if 'Date' not in d.columns:
+  d=d.reset_index()
  frames.append(d)
+if not frames:
+ raise RuntimeError('No annual marcap Parquet files found')
 df=pd.concat(frames,ignore_index=True)
 df['Date']=pd.to_datetime(df['Date'])
 df=df[(df.Date>='2009-01-01')&(df.Date<='2026-10-09')&(df.Market.isin(['KOSPI','KOSDAQ']))].copy()
+print('Loaded rows:',len(df),'tickers:',df.Code.nunique(),flush=True)
 df=df[df.Code.str.fullmatch(r'\d{6}',na=False)]
 for c in ['Open','High','Low','Close','Volume']:
  df[c]=pd.to_numeric(df[c],errors='coerce')
 df=df.sort_values(['Code','Date'])
+df=df.drop_duplicates(['Code','Date'],keep='last')
 df['prev']=df.groupby('Code').Close.shift()
 df['v20']=df.groupby('Code').Volume.transform(lambda s:s.shift().rolling(20).mean())
 df['ma10']=df.groupby('Code').Close.transform(lambda s:s.rolling(10).mean())
