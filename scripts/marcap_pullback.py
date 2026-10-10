@@ -5,14 +5,19 @@ paths=sorted(glob.glob('marcap/data/marcap-20*.parquet'))
 paths=[p for p in paths if 2009<=int(os.path.basename(p)[7:11])<=2026]
 frames=[]
 for p in paths:
- d=pd.read_parquet(p)
+ d=pd.read_parquet(p, columns=['Date','Code','Market','Open','High','Low','Close','Volume'])
  d['Code']=d['Code'].astype(str).str.zfill(6)
  if 'Date' not in d.columns:
   d=d.reset_index()
+ d=d[['Date','Code','Market','Open','High','Low','Close','Volume']]
+ d=d[d['Market'].isin(['KOSPI','KOSDAQ'])]
+ for col in ['Open','High','Low','Close','Volume']:
+  d[col]=pd.to_numeric(d[col],errors='coerce',downcast='float')
  frames.append(d)
 if not frames:
  raise RuntimeError('No annual marcap Parquet files found')
-df=pd.concat(frames,ignore_index=True)
+df=pd.concat(frames,ignore_index=True,copy=False)
+del frames
 df['Date']=pd.to_datetime(df['Date'])
 df=df[(df.Date>='2009-01-01')&(df.Date<='2026-10-09')&(df.Market.isin(['KOSPI','KOSDAQ']))].copy()
 print('Loaded rows:',len(df),'tickers:',df.Code.nunique(),flush=True)
@@ -40,13 +45,15 @@ for code,g in df.groupby('Code',sort=False):
     signals.append((g.iloc[k+1].Date,code,float(g.iloc[k+1].Open)))
     last=k+1;break
 signals.sort()
-daily={d:sub.set_index('Code') for d,sub in df.groupby('Date')}
+daily={d:sub.set_index('Code') for d,sub in df[['Date','Code','Open','High','Low','Close']].groupby('Date',sort=True)}
+del df
 dates=sorted(d for d in daily if d>=pd.Timestamp('2010-01-01'))
 sig=defaultdict(list)
 for s in signals:sig[s[0]].append(s)
 results=[]
 for take in [.05,.10,None]:
  cash=100000000.;pos={};trades=[];equity=[];year={}
+ print('Starting scenario',take,flush=True)
  for date in dates:
   rows=daily[date]
   for code,p in list(pos.items()):
