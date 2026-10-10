@@ -1,0 +1,52 @@
+name: 52 strategy 2010-2026 backtest
+on:
+  push:
+    paths:
+      - 'backtest_52_since_2010.py'
+      - '.github/workflows/backtest-52-since-2010.yml'
+  workflow_dispatch:
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: FinanceData/marcap
+          ref: master
+          path: marcap
+          sparse-checkout: |
+            data/marcap-2008.parquet
+            data/marcap-2009.parquet
+            data/marcap-2010.parquet
+            data/marcap-2011.parquet
+            data/marcap-2012.parquet
+            data/marcap-2013.parquet
+            data/marcap-2014.parquet
+            data/marcap-2015.parquet
+            data/marcap-2016.parquet
+            data/marcap-2017.parquet
+            data/marcap-2018.parquet
+            data/marcap-2019.parquet
+            data/marcap-2020.parquet
+            data/marcap-2021.parquet
+            data/marcap-2022.parquet
+            data/marcap-2023.parquet
+            data/marcap-2024.parquet
+            data/marcap-2025.parquet
+            data/marcap-2026.parquet
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy pyarrow
+      - run: python backtest_52_since_2010.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: 52-audit-results
+          path: |
+            52_since_2010.csv
+            52_full_ex011930_10slots_ledger.csv
+            52_full_ex011930_10slots_equity.csv
