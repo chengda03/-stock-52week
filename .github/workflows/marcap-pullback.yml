@@ -16,12 +16,20 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy pyarrow
       - run: git clone --depth 1 https://github.com/FinanceData/marcap.git marcap
-      - run: python scripts/marcap_pullback.py
+      - name: Verify annual market files
+        run: |
+          ls -lh marcap/data/marcap-2024.parquet marcap/data/marcap-2025.parquet marcap/data/marcap-2026.parquet
+          python -c "import pandas as pd; d=pd.read_parquet('marcap/data/marcap-2025.parquet'); print('columns:',list(d.columns)); print('index:',d.index.name); print('rows:',len(d))"
+      - name: Run backtest
+        run: |
+          set -o pipefail
+          python -u scripts/marcap_pullback.py 2>&1 | tee backtest.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: marcap-pullback-results
           path: |
+            backtest.log
             summary.csv
             annual_*.csv
             trades_*.csv
