@@ -12,7 +12,7 @@ df=pd.concat(frames,ignore_index=True)
 df["Date"]=pd.to_datetime(df.Date)
 df=df[(df.Date<=END)&df.Market.isin(["KOSPI","KOSDAQ"])].copy()
 df=df[df.Code.astype(str).str.zfill(6)!="011930"]
-df=df[~df.Name.astype(str).str.contains(r"스팩|SPAC|우B?$|우C$|우\\(",regex=True)]
+df=df[~df.Name.astype(str).str.contains("스팩|SPAC|우B?$|우C$",regex=True)]
 for c in ["Open","High","Low","Close","Volume","Amount","Rank"]:df[c]=pd.to_numeric(df[c],errors="coerce")
 df=df.sort_values(["Code","Date"]).drop_duplicates(["Code","Date"])
 g=df.groupby("Code",sort=False)
