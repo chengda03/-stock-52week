@@ -3,7 +3,7 @@ on:
   push:
     paths:
       - 'backtest_528_2010_2026.py'
-      - '.github/workflows/optimize-52-better-conditions.yml'
+      - '.github/workflows/backtest-528-2010.yml'
   workflow_dispatch:
 jobs:
   optimize:
@@ -17,6 +17,15 @@ jobs:
           ref: master
           path: marcap
           sparse-checkout: |
+            data/marcap-2010.parquet
+            data/marcap-2011.parquet
+            data/marcap-2012.parquet
+            data/marcap-2013.parquet
+            data/marcap-2014.parquet
+            data/marcap-2015.parquet
+            data/marcap-2016.parquet
+            data/marcap-2017.parquet
+            data/marcap-2018.parquet
             data/marcap-2019.parquet
             data/marcap-2020.parquet
             data/marcap-2021.parquet
