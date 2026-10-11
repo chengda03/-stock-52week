@@ -5,6 +5,7 @@ on:
       - '.github/workflows/marcap-prob4.yml'
       - 'scripts/marcap_prob4.py'
       - 'scripts/marcap_entry_timing.py'
+      - 'scripts/marcap_ma5_confirmation.py'
   workflow_dispatch:
 permissions:
   contents: write
@@ -44,6 +45,8 @@ jobs:
           cat results/prob4/summary.csv >> "$GITHUB_STEP_SUMMARY"
       - name: "03b / Compare entry timing"
         run: python -u scripts/marcap_entry_timing.py
+      - name: "03c / MA5 bullish confirmation and volume backtest"
+        run: python -u scripts/marcap_ma5_confirmation.py
       - name: "04 / Upload result files and logs"
         uses: actions/upload-artifact@v4
         if: always()
