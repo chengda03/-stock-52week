@@ -174,3 +174,17 @@ for label,mask in failure_sets:
  cols=['date','code','market','signal_gain','body','volume_ratio','prev20return','close_position','hit4_5','hit4_10','hit4_15','hit4_20','target_day']
  failures[cols].to_csv(f'results/prob4/failures_{label}.csv',index=False)
  print(label,'sample',len(sample),'15d failures',len(failures),'20d recovered',int(failures.hit4_20.sum()),flush=True)
+
+# Conservative intraday ordering: stop first if both stop and target touch same candle.
+stop_df=pd.DataFrame(stop_rows)
+stop_df['period']=np.where(stop_df.date<pd.Timestamp('2023-01-01'),'2010-2022','2023-2026')
+stop_summary=stop_df.groupby(['period','horizon','stop_pct']).agg(
+ signals=('return_pct','size'),win_pct=('return_pct',lambda a:round((a>0).mean()*100,2)),
+ target_pct=('outcome',lambda a:round((a=='target').mean()*100,2)),
+ mean_return_pct=('return_pct',lambda a:round(a.mean(),3)),
+ median_return_pct=('return_pct',lambda a:round(a.median(),3)),
+ stop_pct_rate=('outcome',lambda a:round(a.isin(['stop','stop_gap']).mean()*100,2))
+).reset_index()
+stop_summary.to_csv('results/prob4/stoploss_comparison.csv',index=False)
+print('STOP LOSS COMPARISON',flush=True)
+print(stop_summary.to_string(index=False),flush=True)
