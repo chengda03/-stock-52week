@@ -18,25 +18,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pandas numpy pyarrow
-      - name: Fetch annual marcap files
+      - name: '01 / Install dependencies'
+        run: pip install pandas numpy pyarrow
+      - name: '02 / Download marcap annual data (2009-2026)'
         run: |
+          echo "## +4% 백테스트 진행 상황" >> "$GITHUB_STEP_SUMMARY"
+          echo "- [x] 실행 시작" >> "$GITHUB_STEP_SUMMARY"
           mkdir -p marcap/data
           for year in $(seq 2009 2026); do
+            echo "::group::Downloading year $year"
             curl -fLsS --retry 3 -o "marcap/data/marcap-$year.parquet" "https://raw.githubusercontent.com/FinanceData/marcap/master/data/marcap-$year.parquet"
+            ls -lh "marcap/data/marcap-$year.parquet"
+            echo "DATA DOWNLOAD COMPLETE: $year"
+            echo "::endgroup::"
           done
-      - name: Analyze
+          echo "- [x] 2009~2026년 데이터 다운로드 완료" >> "$GITHUB_STEP_SUMMARY"
+      - name: "03 / Calculate +4% probability"
         run: |
           set -o pipefail
+          echo "STARTING PROBABILITY CALCULATION"
           python -u scripts/marcap_prob4.py 2>&1 | tee prob4.log
-      - uses: actions/upload-artifact@v4
+          echo "- [x] 확률 계산 완료" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 전체 결과" >> "$GITHUB_STEP_SUMMARY"
+          cat results/prob4/summary.csv >> "$GITHUB_STEP_SUMMARY"
+      - name: "04 / Upload result files and logs"
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: marcap-prob4
           path: |
             results/prob4/
             prob4.log
-      - name: Publish summary to repository
+      - name: "05 / Publish results to GitHub repository"
         if: success()
         run: |
           git config user.name "github-actions[bot]"
