@@ -1,0 +1,46 @@
+name: Marcap plus4 probability 2010-2026
+on:
+  push:
+    paths:
+      - '.github/workflows/marcap-prob4.yml'
+      - 'scripts/marcap_prob4.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy pyarrow
+      - name: Fetch annual marcap files
+        run: |
+          mkdir -p marcap/data
+          for year in $(seq 2009 2026); do
+            curl -fLsS --retry 3 -o "marcap/data/marcap-$year.parquet" "https://raw.githubusercontent.com/FinanceData/marcap/master/data/marcap-$year.parquet"
+          done
+      - name: Analyze
+        run: |
+          set -o pipefail
+          python -u scripts/marcap_prob4.py 2>&1 | tee prob4.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: marcap-prob4
+          path: |
+            results/prob4/
+            prob4.log
+      - name: Publish summary to repository
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add results/prob4/summary.csv results/prob4/annual.csv results/prob4/markets.csv results/prob4/gain_bins.csv results/prob4/volume_bins.csv
+          git commit -m "Publish +4 percent marcap probability results" || exit 0
+          git push
