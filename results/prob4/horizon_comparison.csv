@@ -1,0 +1,16 @@
+condition,days,signals,hit4_pct
+all,5,79666,55.9
+all,10,79666,66.36
+all,15,79666,71.48
+gain_9_12,5,16218,63.95
+gain_9_12,10,16218,72.3
+gain_9_12,15,16218,76.39
+newhigh252_gain_9_12,5,2364,66.33
+newhigh252_gain_9_12,10,2364,73.52
+newhigh252_gain_9_12,15,2364,77.79
+prior20_over20,5,8738,64.69
+prior20_over20,10,8738,73.16
+prior20_over20,15,8738,76.92
+newhigh60_gain_9_12,5,5156,64.06
+newhigh60_gain_9_12,10,5156,72.05
+newhigh60_gain_9_12,15,5156,76.09
