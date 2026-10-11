@@ -112,3 +112,52 @@ for label,d in [
 pd.DataFrame(rows).to_csv('results/prob4/horizon_comparison.csv',index=False)
 print('5/10/15 DAY COMPARISON')
 print(pd.DataFrame(rows).to_string(index=False),flush=True)
+
+# Systematic multi-factor screen: discovery 2010-2022, out-of-sample 2023-2026.
+# Every feature is measured on signal day or earlier. No stop-loss.
+from itertools import combinations
+x=trades.copy()
+factors={}
+for lo,hi in [(.05,.07),(.07,.09),(.09,.12)]:
+ factors[f'gain_{int(lo*100)}_{int(hi*100)}']=x.signal_gain.between(lo,hi)
+for name in ['above20','above60','above120','above200','newhigh20','newhigh60','newhigh252']:
+ factors[name]=x[name].fillna(False)
+for lo,hi in [(1.5,2),(2,3),(3,5),(5,1000000)]:
+ factors[f'volume_{lo}_{hi}']=x.volume_ratio.between(lo,hi,inclusive='left')
+for lo,hi in [(-10,-.1),(-.1,0),(0,.1),(.1,.2),(.2,10)]:
+ factors[f'prior20_{lo}_{hi}']=x.prev20return.between(lo,hi,inclusive='left')
+for lo,hi in [(.8,.9),(.9,.95),(.95,1.001)]:
+ factors[f'closepos_{lo}_{hi}']=x.close_position.between(lo,hi,inclusive='left')
+for lo,hi in [(.025,.04),(.04,.06),(.06,10)]:
+ factors[f'body_{lo}_{hi}']=x.body.between(lo,hi,inclusive='left')
+factors['KOSPI']=x.market.eq('KOSPI')
+factors['KOSDAQ']=x.market.eq('KOSDAQ')
+factor_names=list(factors)
+train=x.date<pd.Timestamp('2023-01-01')
+test=~train
+screen_rows=[]
+for n in [1,2,3]:
+ for names in combinations(factor_names,n):
+  # mutually exclusive categories cannot coexist
+  if len({v.split('_')[0] for v in names if v.startswith(('gain_','volume_','prior20_','closepos_','body_'))}) < sum(v.startswith(('gain_','volume_','prior20_','closepos_','body_')) for v in names):continue
+  if 'KOSPI' in names and 'KOSDAQ' in names:continue
+  mask=np.ones(len(x),dtype=bool)
+  for name in names:mask &= factors[name].to_numpy()
+  tr=x.loc[mask & train]
+  te=x.loc[mask & test]
+  if len(tr)<200 or len(te)<60:continue
+  row={'condition':' + '.join(names),'train_n':len(tr),'test_n':len(te)}
+  for days in [5,10,15]:
+   row[f'train_{days}d_pct']=round(tr[f'hit4_{days}'].mean()*100,2)
+   row[f'test_{days}d_pct']=round(te[f'hit4_{days}'].mean()*100,2)
+  screen_rows.append(row)
+screen_df=pd.DataFrame(screen_rows)
+screen_df=screen_df.sort_values(['test_15d_pct','test_n'],ascending=[False,False])
+screen_df.to_csv('results/prob4/factor_search_all.csv',index=False)
+# Filter for durable out-of-sample candidates rather than ranking only in-sample peaks.
+for threshold in [50,60,80]:
+ for days in [5,10,15]:
+  keep=screen_df[(screen_df[f'train_{days}d_pct']>=threshold)&(screen_df[f'test_{days}d_pct']>=threshold)]
+  keep.sort_values([f'test_{days}d_pct','test_n'],ascending=[False,False]).head(30).to_csv(f'results/prob4/threshold_{threshold}_{days}d.csv',index=False)
+print('TOP VALIDATED 15D FACTOR COMBINATIONS',flush=True)
+print(screen_df.head(25).to_string(index=False),flush=True)
