@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/marcap-prob4.yml'
       - 'scripts/marcap_prob4.py'
+      - 'scripts/marcap_entry_timing.py'
   workflow_dispatch:
 permissions:
   contents: write
@@ -41,6 +42,8 @@ jobs:
           echo "- [x] 확률 계산 완료" >> "$GITHUB_STEP_SUMMARY"
           echo "### 전체 결과" >> "$GITHUB_STEP_SUMMARY"
           cat results/prob4/summary.csv >> "$GITHUB_STEP_SUMMARY"
+      - name: "03b / Compare entry timing"
+        run: python -u scripts/marcap_entry_timing.py
       - name: "04 / Upload result files and logs"
         uses: actions/upload-artifact@v4
         if: always()
