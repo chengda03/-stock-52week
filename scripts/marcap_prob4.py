@@ -25,6 +25,14 @@ df=df.sort_values(['Code','Date']).drop_duplicates(['Code','Date'])
 g=df.groupby('Code',sort=False)
 df['prev']=g.Close.shift()
 df['v20']=g.Volume.transform(lambda x:x.shift(1).rolling(20,min_periods=20).mean())
+df['ma20']=g.Close.transform(lambda x:x.shift(1).rolling(20,min_periods=20).mean())
+df['ma60']=g.Close.transform(lambda x:x.shift(1).rolling(60,min_periods=60).mean())
+df['ma120']=g.Close.transform(lambda x:x.shift(1).rolling(120,min_periods=120).mean())
+df['ma200']=g.Close.transform(lambda x:x.shift(1).rolling(200,min_periods=200).mean())
+df['prev20']=g.Close.shift(20)
+df['high20']=g.High.transform(lambda x:x.shift(1).rolling(20,min_periods=20).max())
+df['high60']=g.High.transform(lambda x:x.shift(1).rolling(60,min_periods=60).max())
+df['high252']=g.High.transform(lambda x:x.shift(1).rolling(252,min_periods=252).max())
 df['setup']=(df.Close/df.prev-1).between(.05,.12)&((df.Close/df.Open-1)>=.025)&(((df.High-df.Close)/(df.High-df.Low).replace(0,np.nan))<=.2)&(df.Volume>=1.5*df.v20)
 results=[]
 for code,sub in df.groupby('Code',sort=False):
@@ -49,7 +57,7 @@ for code,sub in df.groupby('Code',sort=False):
     elif bar.Open<=buy*.96:first='stop'
     elif bar.Low<=buy*.96:first='stop'
     elif bar.High>=buy*1.04:first='target';duration=daynum
-  results.append({'date':signal.Date,'code':code,'market':signal.Market,'signal_gain':float(signal.Close/signal.prev-1),'body':float(signal.Close/signal.Open-1),'volume_ratio':float(signal.Volume/signal.v20),'target_hit':hit is not None,'target_first':first=='target','stop_first':first=='stop','target_day':hit if hit is not None else np.nan,'first_day':duration if duration is not None else np.nan,'ma200':np.nan})
+  results.append({'date':signal.Date,'code':code,'market':signal.Market,'signal_gain':float(signal.Close/signal.prev-1),'body':float(signal.Close/signal.Open-1),'volume_ratio':float(signal.Volume/signal.v20),'target_hit':hit is not None,'target_first':first=='target','stop_first':first=='stop','target_day':hit if hit is not None else np.nan,'first_day':duration if duration is not None else np.nan,'above20':bool(signal.Close>signal.ma20),'above60':bool(signal.Close>signal.ma60),'above120':bool(signal.Close>signal.ma120),'above200':bool(signal.Close>signal.ma200),'newhigh20':bool(signal.Close>signal.high20),'newhigh60':bool(signal.Close>signal.high60),'newhigh252':bool(signal.Close>signal.high252),'prev20return':float(signal.prev/signal.prev20-1) if pd.notna(signal.prev20) else np.nan,'close_position':float((signal.Close-signal.Low)/(signal.High-signal.Low)) if signal.High>signal.Low else np.nan})
 trades=pd.DataFrame(results)
 if trades.empty:raise RuntimeError('No eligible signals')
 trades['year']=trades.date.dt.year
@@ -63,3 +71,28 @@ trades.assign(gain_bin=pd.cut(trades.signal_gain,[.05,.07,.09,.12],include_lowes
 trades.assign(volume_bin=pd.cut(trades.volume_ratio,[1.5,2,3,5,float('inf')],include_lowest=True)).groupby('volume_bin',observed=True).apply(stats,include_groups=False).to_csv('results/prob4/volume_bins.csv')
 trades.to_csv('results/prob4/trades.csv',index=False)
 print(stats(trades).to_string(),flush=True)
+
+# Target-hit-only condition screening, no stop-loss used.
+screen=[]
+def add(label,d):
+ if len(d)>=100:
+  screen.append({'condition':label,'signals':len(d),'hit4_pct':round(d.target_hit.mean()*100,2),'avg_target_days':round(d.loc[d.target_hit,'target_day'].mean(),2)})
+add('all',trades)
+for k in ['above20','above60','above120','above200','newhigh20','newhigh60','newhigh252']:
+ add(k,trades[trades[k]])
+for a,b in [(.05,.07),(.07,.09),(.09,.12)]:
+ add(f'gain_{a}_{b}',trades[trades.signal_gain.between(a,b)])
+for lo,hi in [(-1,-.1),(-.1,0),(0,.1),(.1,.2),(.2,10)]:
+ add(f'prior20_{lo}_{hi}',trades[trades.prev20return.between(lo,hi,inclusive='left')])
+for key in ['above200','newhigh20','newhigh60','newhigh252']:
+ for lo,hi in [(.05,.07),(.07,.09),(.09,.12)]:
+  d=trades[trades[key]&trades.signal_gain.between(lo,hi)]
+  add(f'{key}_gain_{lo}_{hi}',d)
+for k1,k2 in [('above200','newhigh20'),('above200','newhigh60'),('above200','newhigh252'),('newhigh20','newhigh60'),('above120','newhigh252')]:
+ d=trades[trades[k1]&trades[k2]]
+ add(f'{k1}_and_{k2}',d)
+ for lo,hi in [(.07,.09),(.09,.12)]:
+  add(f'{k1}_and_{k2}_gain_{lo}_{hi}',d[d.signal_gain.between(lo,hi)])
+pd.DataFrame(screen).sort_values(['hit4_pct','signals'],ascending=[False,False]).to_csv('results/prob4/condition_screen.csv',index=False)
+print('TOP +4% CONDITIONS (stop ignored)')
+print(pd.DataFrame(screen).sort_values('hit4_pct',ascending=False).head(20).to_string(index=False),flush=True)
