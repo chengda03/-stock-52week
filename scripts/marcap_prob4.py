@@ -39,7 +39,7 @@ for code,sub in df.groupby('Code',sort=False):
  sub=sub.reset_index(drop=True)
  ix=np.flatnonzero(sub.setup.to_numpy())
  for j in ix:
-  if j+5>=len(sub):continue
+  if j+15>=len(sub):continue
   signal=sub.iloc[j]
   if not (pd.Timestamp(START)<=signal.Date<=pd.Timestamp(END)):continue
   entry=sub.iloc[j+1]
@@ -47,7 +47,7 @@ for code,sub in df.groupby('Code',sort=False):
   buy=float(entry.Open)
   if buy<=0:continue
   hit=None;stop=None;first=None;duration=None
-  for daynum in range(1,6):
+  for daynum in range(1,16):
    bar=sub.iloc[j+daynum]
    if bar.Date>pd.Timestamp(END):break
    if hit is None and bar.High>=buy*1.04:hit=daynum
@@ -57,7 +57,8 @@ for code,sub in df.groupby('Code',sort=False):
     elif bar.Open<=buy*.96:first='stop'
     elif bar.Low<=buy*.96:first='stop'
     elif bar.High>=buy*1.04:first='target';duration=daynum
-  results.append({'date':signal.Date,'code':code,'market':signal.Market,'signal_gain':float(signal.Close/signal.prev-1),'body':float(signal.Close/signal.Open-1),'volume_ratio':float(signal.Volume/signal.v20),'target_hit':hit is not None,'target_first':first=='target','stop_first':first=='stop','target_day':hit if hit is not None else np.nan,'first_day':duration if duration is not None else np.nan,'above20':bool(signal.Close>signal.ma20),'above60':bool(signal.Close>signal.ma60),'above120':bool(signal.Close>signal.ma120),'above200':bool(signal.Close>signal.ma200),'newhigh20':bool(signal.Close>signal.high20),'newhigh60':bool(signal.Close>signal.high60),'newhigh252':bool(signal.Close>signal.high252),'prev20return':float(signal.prev/signal.prev20-1) if pd.notna(signal.prev20) else np.nan,'close_position':float((signal.Close-signal.Low)/(signal.High-signal.Low)) if signal.High>signal.Low else np.nan})
+  highs=[float(sub.iloc[j+k].High) for k in range(1,16) if sub.iloc[j+k].Date<=pd.Timestamp(END)]
+  results.append({'hit4_5':any(x>=buy*1.04 for x in highs[:5]),'hit4_10':any(x>=buy*1.04 for x in highs[:10]),'hit4_15':any(x>=buy*1.04 for x in highs[:15]),'date':signal.Date,'code':code,'market':signal.Market,'signal_gain':float(signal.Close/signal.prev-1),'body':float(signal.Close/signal.Open-1),'volume_ratio':float(signal.Volume/signal.v20),'target_hit':hit is not None,'target_first':first=='target','stop_first':first=='stop','target_day':hit if hit is not None else np.nan,'first_day':duration if duration is not None else np.nan,'above20':bool(signal.Close>signal.ma20),'above60':bool(signal.Close>signal.ma60),'above120':bool(signal.Close>signal.ma120),'above200':bool(signal.Close>signal.ma200),'newhigh20':bool(signal.Close>signal.high20),'newhigh60':bool(signal.Close>signal.high60),'newhigh252':bool(signal.Close>signal.high252),'prev20return':float(signal.prev/signal.prev20-1) if pd.notna(signal.prev20) else np.nan,'close_position':float((signal.Close-signal.Low)/(signal.High-signal.Low)) if signal.High>signal.Low else np.nan})
 trades=pd.DataFrame(results)
 if trades.empty:raise RuntimeError('No eligible signals')
 trades['year']=trades.date.dt.year
@@ -96,3 +97,18 @@ for k1,k2 in [('above200','newhigh20'),('above200','newhigh60'),('above200','new
 pd.DataFrame(screen).sort_values(['hit4_pct','signals'],ascending=[False,False]).to_csv('results/prob4/condition_screen.csv',index=False)
 print('TOP +4% CONDITIONS (stop ignored)')
 print(pd.DataFrame(screen).sort_values('hit4_pct',ascending=False).head(20).to_string(index=False),flush=True)
+
+# Horizon comparison: entry at next-day open, no stop-loss.
+rows=[]
+for label,d in [
+ ('all',trades),
+ ('gain_9_12',trades[trades.signal_gain.between(.09,.12)]),
+ ('newhigh252_gain_9_12',trades[trades.newhigh252&trades.signal_gain.between(.09,.12)]),
+ ('prior20_over20',trades[trades.prev20return>=.2]),
+ ('newhigh60_gain_9_12',trades[trades.newhigh60&trades.signal_gain.between(.09,.12)])
+]:
+ for days in [5,10,15]:
+  rows.append({'condition':label,'days':days,'signals':len(d),'hit4_pct':round(d[f'hit4_{days}'].mean()*100,2)})
+pd.DataFrame(rows).to_csv('results/prob4/horizon_comparison.csv',index=False)
+print('5/10/15 DAY COMPARISON')
+print(pd.DataFrame(rows).to_string(index=False),flush=True)
