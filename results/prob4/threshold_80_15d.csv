@@ -1,3 +1,2 @@
-condition,train_n,test_n,train_5d_pct,test_5d_pct,train_10d_pct,test_10d_pct,train_15d_pct,test_15d_pct
-gain_9_12 + prior20_0.2_10 + closepos_0.95_1.001,652,211,67.64,70.62,76.07,75.36,80.21,81.04
-gain_9_12 + volume_1.5_2 + closepos_0.9_0.95,406,196,69.95,68.37,77.34,78.06,80.3,80.1
+condition,train_n,test_n,train_5d_pct,test_5d_pct,train_10d_pct,test_10d_pct,train_15d_pct,test_15d_pct,train_20d_pct,test_20d_pct
+gain_9_12 + prior20_0.2_10 + closepos_0.95_1.001,652,210,67.64,70.95,76.07,75.71,80.21,81.43,81.6,82.38

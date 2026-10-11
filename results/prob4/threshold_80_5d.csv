@@ -1,1 +1,1 @@
-condition,train_n,test_n,train_5d_pct,test_5d_pct,train_10d_pct,test_10d_pct,train_15d_pct,test_15d_pct
+condition,train_n,test_n,train_5d_pct,test_5d_pct,train_10d_pct,test_10d_pct,train_15d_pct,test_15d_pct,train_20d_pct,test_20d_pct
