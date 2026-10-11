@@ -39,7 +39,7 @@ for code,sub in df.groupby('Code',sort=False):
  sub=sub.reset_index(drop=True)
  ix=np.flatnonzero(sub.setup.to_numpy())
  for j in ix:
-  if j+15>=len(sub):continue
+  if j+20>=len(sub):continue
   signal=sub.iloc[j]
   if not (pd.Timestamp(START)<=signal.Date<=pd.Timestamp(END)):continue
   entry=sub.iloc[j+1]
@@ -47,7 +47,7 @@ for code,sub in df.groupby('Code',sort=False):
   buy=float(entry.Open)
   if buy<=0:continue
   hit=None;stop=None;first=None;duration=None
-  for daynum in range(1,16):
+  for daynum in range(1,21):
    bar=sub.iloc[j+daynum]
    if bar.Date>pd.Timestamp(END):break
    if hit is None and bar.High>=buy*1.04:hit=daynum
@@ -57,8 +57,8 @@ for code,sub in df.groupby('Code',sort=False):
     elif bar.Open<=buy*.96:first='stop'
     elif bar.Low<=buy*.96:first='stop'
     elif bar.High>=buy*1.04:first='target';duration=daynum
-  highs=[float(sub.iloc[j+k].High) for k in range(1,16) if sub.iloc[j+k].Date<=pd.Timestamp(END)]
-  results.append({'hit4_5':any(x>=buy*1.04 for x in highs[:5]),'hit4_10':any(x>=buy*1.04 for x in highs[:10]),'hit4_15':any(x>=buy*1.04 for x in highs[:15]),'date':signal.Date,'code':code,'market':signal.Market,'signal_gain':float(signal.Close/signal.prev-1),'body':float(signal.Close/signal.Open-1),'volume_ratio':float(signal.Volume/signal.v20),'target_hit':hit is not None,'target_first':first=='target','stop_first':first=='stop','target_day':hit if hit is not None else np.nan,'first_day':duration if duration is not None else np.nan,'above20':bool(signal.Close>signal.ma20),'above60':bool(signal.Close>signal.ma60),'above120':bool(signal.Close>signal.ma120),'above200':bool(signal.Close>signal.ma200),'newhigh20':bool(signal.Close>signal.high20),'newhigh60':bool(signal.Close>signal.high60),'newhigh252':bool(signal.Close>signal.high252),'prev20return':float(signal.prev/signal.prev20-1) if pd.notna(signal.prev20) else np.nan,'close_position':float((signal.Close-signal.Low)/(signal.High-signal.Low)) if signal.High>signal.Low else np.nan})
+  highs=[float(sub.iloc[j+k].High) for k in range(1,21) if sub.iloc[j+k].Date<=pd.Timestamp(END)]
+  results.append({'hit4_5':any(x>=buy*1.04 for x in highs[:5]),'hit4_10':any(x>=buy*1.04 for x in highs[:10]),'hit4_15':any(x>=buy*1.04 for x in highs[:15]),'hit4_20':any(x>=buy*1.04 for x in highs[:20]),'date':signal.Date,'code':code,'market':signal.Market,'signal_gain':float(signal.Close/signal.prev-1),'body':float(signal.Close/signal.Open-1),'volume_ratio':float(signal.Volume/signal.v20),'target_hit':hit is not None,'target_first':first=='target','stop_first':first=='stop','target_day':hit if hit is not None else np.nan,'first_day':duration if duration is not None else np.nan,'above20':bool(signal.Close>signal.ma20),'above60':bool(signal.Close>signal.ma60),'above120':bool(signal.Close>signal.ma120),'above200':bool(signal.Close>signal.ma200),'newhigh20':bool(signal.Close>signal.high20),'newhigh60':bool(signal.Close>signal.high60),'newhigh252':bool(signal.Close>signal.high252),'prev20return':float(signal.prev/signal.prev20-1) if pd.notna(signal.prev20) else np.nan,'close_position':float((signal.Close-signal.Low)/(signal.High-signal.Low)) if signal.High>signal.Low else np.nan})
 trades=pd.DataFrame(results)
 if trades.empty:raise RuntimeError('No eligible signals')
 trades['year']=trades.date.dt.year
@@ -107,7 +107,7 @@ for label,d in [
  ('prior20_over20',trades[trades.prev20return>=.2]),
  ('newhigh60_gain_9_12',trades[trades.newhigh60&trades.signal_gain.between(.09,.12)])
 ]:
- for days in [5,10,15]:
+ for days in [5,10,15,20]:
   rows.append({'condition':label,'days':days,'signals':len(d),'hit4_pct':round(d[f'hit4_{days}'].mean()*100,2)})
 pd.DataFrame(rows).to_csv('results/prob4/horizon_comparison.csv',index=False)
 print('5/10/15 DAY COMPARISON')
@@ -147,7 +147,7 @@ for n in [1,2,3]:
   te=x.loc[mask & test]
   if len(tr)<200 or len(te)<60:continue
   row={'condition':' + '.join(names),'train_n':len(tr),'test_n':len(te)}
-  for days in [5,10,15]:
+  for days in [5,10,15,20]:
    row[f'train_{days}d_pct']=round(tr[f'hit4_{days}'].mean()*100,2)
    row[f'test_{days}d_pct']=round(te[f'hit4_{days}'].mean()*100,2)
   screen_rows.append(row)
@@ -156,7 +156,7 @@ screen_df=screen_df.sort_values(['test_15d_pct','test_n'],ascending=[False,False
 screen_df.to_csv('results/prob4/factor_search_all.csv',index=False)
 # Filter for durable out-of-sample candidates rather than ranking only in-sample peaks.
 for threshold in [50,60,80]:
- for days in [5,10,15]:
+ for days in [5,10,15,20]:
   keep=screen_df[(screen_df[f'train_{days}d_pct']>=threshold)&(screen_df[f'test_{days}d_pct']>=threshold)]
   keep.sort_values([f'test_{days}d_pct','test_n'],ascending=[False,False]).head(30).to_csv(f'results/prob4/threshold_{threshold}_{days}d.csv',index=False)
 print('TOP VALIDATED 15D FACTOR COMBINATIONS',flush=True)
