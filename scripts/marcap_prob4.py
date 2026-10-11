@@ -161,3 +161,16 @@ for threshold in [50,60,80]:
   keep.sort_values([f'test_{days}d_pct','test_n'],ascending=[False,False]).head(30).to_csv(f'results/prob4/threshold_{threshold}_{days}d.csv',index=False)
 print('TOP VALIDATED 15D FACTOR COMBINATIONS',flush=True)
 print(screen_df.head(25).to_string(index=False),flush=True)
+
+# Export exact non-hitting signal events for both validated 80% strategies.
+failure_sets=[
+ ('momentum_close_top5',trades.signal_gain.between(.09,.12)&(trades.prev20return>=.2)&trades.close_position.between(.95,1.001)),
+ ('volume_close_90_95',trades.signal_gain.between(.09,.12)&trades.volume_ratio.between(1.5,2,inclusive='left')&trades.close_position.between(.9,.95,inclusive='left'))
+]
+for label,mask in failure_sets:
+ sample=trades.loc[mask].copy()
+ sample=sample[sample.date>=pd.Timestamp('2023-01-01')]
+ failures=sample[~sample.hit4_15].copy()
+ cols=['date','code','market','signal_gain','body','volume_ratio','prev20return','close_position','hit4_5','hit4_10','hit4_15','hit4_20','target_day']
+ failures[cols].to_csv(f'results/prob4/failures_{label}.csv',index=False)
+ print(label,'sample',len(sample),'15d failures',len(failures),'20d recovered',int(failures.hit4_20.sum()),flush=True)
