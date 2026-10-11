@@ -35,6 +35,7 @@ df['high60']=g.High.transform(lambda x:x.shift(1).rolling(60,min_periods=60).max
 df['high252']=g.High.transform(lambda x:x.shift(1).rolling(252,min_periods=252).max())
 df['setup']=(df.Close/df.prev-1).between(.05,.12)&((df.Close/df.Open-1)>=.025)&(((df.High-df.Close)/(df.High-df.Low).replace(0,np.nan))<=.2)&(df.Volume>=1.5*df.v20)
 results=[]
+stop_rows=[]
 for code,sub in df.groupby('Code',sort=False):
  sub=sub.reset_index(drop=True)
  ix=np.flatnonzero(sub.setup.to_numpy())
@@ -58,6 +59,23 @@ for code,sub in df.groupby('Code',sort=False):
     elif bar.Low<=buy*.96:first='stop'
     elif bar.High>=buy*1.04:first='target';duration=daynum
   highs=[float(sub.iloc[j+k].High) for k in range(1,21) if sub.iloc[j+k].Date<=pd.Timestamp(END)]
+  if .09<=float(signal.Close/signal.prev-1)<=.12:
+   for horizon in [5,10,15,20]:
+    for stop_pct in [.02,.03,.04,.05,.07,.10]:
+     exit_price=None;outcome=None
+     for k in range(1,horizon+1):
+      b=sub.iloc[j+k]
+      if b.Date>pd.Timestamp(END):break
+      target=buy*1.04;stop_price=buy*(1-stop_pct)
+      if b.Open>=target:exit_price=float(b.Open);outcome='target';break
+      if b.Open<=stop_price:exit_price=float(b.Open);outcome='stop_gap';break
+      if b.Low<=stop_price:exit_price=stop_price;outcome='stop';break
+      if b.High>=target:exit_price=target;outcome='target';break
+     if exit_price is None:
+      last=sub.iloc[j+horizon]
+      if last.Date>pd.Timestamp(END):continue
+      exit_price=float(last.Close);outcome='time'
+     stop_rows.append({'date':signal.Date,'code':code,'horizon':horizon,'stop_pct':stop_pct,'outcome':outcome,'return_pct':(exit_price/buy-1)*100})
   results.append({'hit4_5':any(x>=buy*1.04 for x in highs[:5]),'hit4_10':any(x>=buy*1.04 for x in highs[:10]),'hit4_15':any(x>=buy*1.04 for x in highs[:15]),'hit4_20':any(x>=buy*1.04 for x in highs[:20]),'date':signal.Date,'code':code,'market':signal.Market,'signal_gain':float(signal.Close/signal.prev-1),'body':float(signal.Close/signal.Open-1),'volume_ratio':float(signal.Volume/signal.v20),'target_hit':hit is not None,'target_first':first=='target','stop_first':first=='stop','target_day':hit if hit is not None else np.nan,'first_day':duration if duration is not None else np.nan,'above20':bool(signal.Close>signal.ma20),'above60':bool(signal.Close>signal.ma60),'above120':bool(signal.Close>signal.ma120),'above200':bool(signal.Close>signal.ma200),'newhigh20':bool(signal.Close>signal.high20),'newhigh60':bool(signal.Close>signal.high60),'newhigh252':bool(signal.Close>signal.high252),'prev20return':float(signal.prev/signal.prev20-1) if pd.notna(signal.prev20) else np.nan,'close_position':float((signal.Close-signal.Low)/(signal.High-signal.Low)) if signal.High>signal.Low else np.nan})
 trades=pd.DataFrame(results)
 if trades.empty:raise RuntimeError('No eligible signals')
