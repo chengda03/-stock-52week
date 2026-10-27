@@ -1,0 +1,35 @@
+name: Envelope 2020 stop comparison
+on:
+  push:
+    paths:
+      - '.github/workflows/envelope20-stops.yml'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      matrix:
+        stop: [10, 12, 15]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: FinanceData/marcap
+          ref: master
+          path: marcap
+          fetch-depth: 1
+          sparse-checkout: |
+            data/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy pyarrow
+      - run: python scripts/envelope20_2020_stops.py
+        env:
+          STOP_PCT: ${{ matrix.stop }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: envelope20-stop-${{ matrix.stop }}
+          path: results/envelope20_stop_${{ matrix.stop }}/
