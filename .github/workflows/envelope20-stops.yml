@@ -1,4 +1,4 @@
-name: Envelope 2020 stop comparison
+name: Envelope 2020 stop comparison rerun
 on:
   push:
     paths:
