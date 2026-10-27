@@ -26,7 +26,7 @@ signals={}
 anomalies=[]
 for code,s in df.groupby("Code",sort=False):
  s=s.reset_index(drop=True)
- op=s.Open.to_numpy(float); hi=s.High.to_numpy(float); close=s.Close.to_numpy(float)
+ op=s.Open.to_numpy(float); hi=s.High.to_numpy(float); low=s.Low.to_numpy(float); close=s.Close.to_numpy(float)
  di=np.array([idx[d] for d in s.Date])
  ma20=pd.Series(close).rolling(20).mean().to_numpy()
  ma5=pd.Series(close).rolling(5).mean().to_numpy()
@@ -45,7 +45,7 @@ for code,s in df.groupby("Code",sort=False):
   k=i+1
   if s.Date.iloc[k]<START:continue
   signals.setdefault(int(di[k]),[]).append((code,k))
- bars[code]={"di":di,"op":op,"hi":hi,"close":close,"map":{int(t):int(k) for k,t in enumerate(di)}}
+ bars[code]={"di":di,"op":op,"hi":hi,"low":low,"close":close,"map":{int(t):int(k) for k,t in enumerate(di)}}
 cash=CAPITAL; positions={};ledger=[];curve=[];missing_exits=0
 for t,date in enumerate(dates):
  if date<START:continue
@@ -59,9 +59,8 @@ for t,date in enumerate(dates):
    price=None;reason=None
    if b["op"][k]<=p["entry_price"]*(1-STOP):price=b["op"][k];reason="gap_stop"
    elif b["op"][k]>=p["entry_price"]*1.08:price=b["op"][k];reason="gap_target"
-   elif b["close"][k] <= 0:pass
-   elif b["hi"][k]>=p["entry_price"]*1.08 and b["close"][k] > p["entry_price"]*(1-STOP):price=p["entry_price"]*1.08;reason="target"
-   elif b["close"][k]<=p["entry_price"]*(1-STOP):price=p["entry_price"]*(1-STOP);reason="stop"
+   elif b["low"][k]<=p["entry_price"]*(1-STOP):price=p["entry_price"]*(1-STOP);reason="stop"
+   elif b["hi"][k]>=p["entry_price"]*1.08:price=p["entry_price"]*1.08;reason="target"
    elif age>=30:price=b["close"][k];reason="time"
    if price is not None:exits.append((code,price,reason))
   elif age>=30:
@@ -78,7 +77,8 @@ for t,date in enumerate(dates):
   if shares<1:continue
   cost=shares*price;cash-=cost
   positions[code]={"shares":shares,"cost":cost,"entry_price":price,"entry_t":t,"entry_date":date,"last_close":b["close"][k],"last_seen_t":t}
-  if b["hi"][k]>=price*1.08:exits.append((code,price*1.08,"target"))
+  if b["low"][k]<=price*(1-STOP):exits.append((code,price*(1-STOP),"stop"))
+  elif b["hi"][k]>=price*1.08:exits.append((code,price*1.08,"target"))
  for code,price,reason in exits:
   p=positions.pop(code,None)
   if p is None:continue
