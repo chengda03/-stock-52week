@@ -1,0 +1,30 @@
+name: Envelope 10m portfolio backtest
+on:
+  push:
+    paths:
+      - '.github/workflows/envelope20-portfolio-10m.yml'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: FinanceData/marcap
+          ref: master
+          path: marcap
+          fetch-depth: 1
+          sparse-checkout: |
+            data/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy pyarrow
+      - run: python scripts/envelope20_portfolio_10m.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: envelope20-portfolio-10m-results
+          path: results/envelope20_portfolio/
